@@ -1,0 +1,2 @@
+paka.webstatic
+==============
