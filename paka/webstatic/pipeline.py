@@ -52,11 +52,13 @@ class Output(object):
         encoding=DEFAULT_ENCODING,
         manifest=None,
         hasher=lambda contents: hashlib.sha1(contents).hexdigest(),
+        makedirs=False,
     ):
         self._out_path = out_path
         self._encoding = encoding
         self._manifest = manifest
         self._hasher = hasher
+        self._makedirs = makedirs
 
     def __call__(self, input_):
         contents = input_.data.encode(self._encoding)
@@ -70,6 +72,11 @@ class Output(object):
             manifest[path] = self._hasher(contents)
             manifest.save()
             path = add_hash_to_path(path, manifest[path])
+        if self._makedirs:
+            try:
+                os.makedirs(os.path.dirname(path))
+            except OSError:
+                pass
         with open(path, "wb") as f:
             f.write(contents)
         input_.path = path

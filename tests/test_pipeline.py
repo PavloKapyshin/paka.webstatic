@@ -1,5 +1,6 @@
 import os
 import glob
+import shutil
 import tempfile
 import unittest
 
@@ -16,8 +17,13 @@ class PipelineTest(unittest.TestCase):
     def tearDown(self):
         for path in glob.glob(self.pth("*/out*.css")):
             self._to_remove.add(path)
+        for path in glob.glob(self.pth("*/out-*")):
+            self._to_remove.add(path)
         for path in self._to_remove:
-            os.remove(path)
+            if os.path.isdir(path):
+                shutil.rmtree(path)
+            else:
+                os.remove(path)
 
     def tmp(self):
         _handle, path = tempfile.mkstemp(dir=self.pth())
@@ -44,6 +50,47 @@ class PipelineTest(unittest.TestCase):
         with open(out_path, "rb") as f:
             out_b = f.read()
         self.assertEqual(out_b, in_b)
+
+    def test_noop_makedirs(self):
+        in_path = self.pth("noop/in.css")
+        out_path = self.pth("noop/out-some/out.css")
+        self.assertFalse(os.path.exists(out_path))
+        self.assertFalse(os.path.exists(os.path.dirname(out_path)))
+        output = self.p.run((
+            self.p.InputItem(in_path),
+            self.p.Output(out_path, makedirs=True),
+        ))
+        self.assertEqual(output.path, out_path)
+        self.assertTrue(os.path.exists(out_path))
+        with open(in_path, "rb") as f:
+            in_b = f.read()
+        with open(out_path, "rb") as f:
+            out_b = f.read()
+        self.assertEqual(out_b, in_b)
+
+    def test_noop_makedirs_existing_dir(self):
+        in_path = self.pth("noop/in.css")
+        out_path1 = self.pth("noop/out-some/out1.css")
+        out_path2 = self.pth("noop/out-some/out2.css")
+        self.assertFalse(os.path.exists(out_path1))
+        self.assertFalse(os.path.exists(out_path2))
+        self.assertFalse(os.path.exists(os.path.dirname(out_path1)))
+        self.assertFalse(os.path.exists(os.path.dirname(out_path2)))
+
+        def check(out_path):
+            output = self.p.run((
+                self.p.InputItem(in_path),
+                self.p.Output(out_path, makedirs=True)))
+            self.assertEqual(output.path, out_path)
+            self.assertTrue(os.path.exists(out_path))
+            with open(in_path, "rb") as f:
+                in_b = f.read()
+            with open(out_path, "rb") as f:
+                out_b = f.read()
+            self.assertEqual(out_b, in_b)
+
+        check(out_path1)
+        check(out_path2)
 
     def test_noop_with_manifest(self):
         from paka.webstatic.manifest import Manifest
@@ -76,6 +123,37 @@ class PipelineTest(unittest.TestCase):
                 """noop_with_manifest/out.css"""
             )
         )
+
+    def test_noop_makedirs_with_manifest(self):
+        from paka.webstatic.manifest import Manifest
+        manifest_path = self.tmp()
+        manifest = Manifest(manifest_path, hash_length=10)
+        in_path = self.pth("noop_with_manifest/in.css")
+        out_path = self.pth("noop_with_manifest/out-some/out.css")
+        actual_out_path = self.pth(
+            "noop_with_manifest/out-some/out.aac6085ead.css")
+        self.assertFalse(os.path.exists(out_path))
+        self.assertFalse(os.path.exists(os.path.dirname(out_path)))
+        self.assertFalse(os.path.exists(actual_out_path))
+        output = self.p.run((
+            self.p.InputItem(in_path),
+            self.p.Output(out_path, manifest=manifest, makedirs=True)))
+        self.assertEqual(output.path, actual_out_path)
+        self.assertFalse(os.path.exists(out_path))
+        self.assertTrue(os.path.exists(actual_out_path))
+        with open(in_path, "rb") as f:
+            in_b = f.read()
+        with open(actual_out_path, "rb") as f:
+            out_b = f.read()
+        self.assertEqual(out_b, in_b)
+        self.assertEqual(manifest[out_path], "aac6085ead")
+        with open(manifest_path, "rb") as f:
+            manifest_s = f.read().decode("utf-8")
+        self.assertEqual(
+            manifest_s,
+            (
+                """aac6085eadc857908214c435b0f02d09782f222f  """
+                """noop_with_manifest/out-some/out.css"""))
 
     def test_manifest_should_remove_old_file(self):
         from paka.webstatic.manifest import Manifest
