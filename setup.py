@@ -3,7 +3,7 @@ import setuptools
 
 setuptools.setup(
     name="paka.webstatic",
-    version="3.1.1",
+    version="3.2.1",
     packages=setuptools.find_packages(),
     install_requires=["six", "markupsafe"],
     include_package_data=True,
