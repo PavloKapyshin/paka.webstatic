@@ -43,10 +43,6 @@ class InputItem(object):
             self._to_read = None
         return self._data
 
-    @data.setter
-    def data(self, value):
-        self._data = value
-
 
 class Output(object):
 
