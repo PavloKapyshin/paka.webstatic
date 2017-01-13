@@ -6,6 +6,7 @@ setuptools.setup(
     version="3.2.1",
     packages=setuptools.find_packages(),
     install_requires=["six", "markupsafe"],
+    extras_require={"testing": []},
     include_package_data=True,
     namespace_packages=["paka"],
     zip_safe=False,
